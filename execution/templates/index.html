@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Traffic Analyzer — AI-Powered PCAP Insights</title>
+    <meta name="description"
+        content="Upload Wireshark PCAP files and get AI-powered network traffic analysis with visual topology diagrams.">
+
+    <!-- Mermaid.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* ===== CSS RESET & VARIABLES ===== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2035;
+            --bg-card-hover: #1f2847;
+            --bg-glass: rgba(26, 32, 53, 0.7);
+            --border-subtle: rgba(99, 128, 255, 0.12);
+            --border-glow: rgba(99, 128, 255, 0.3);
+            --text-primary: #e8ecf4;
+            --text-secondary: #8b95b0;
+            --text-muted: #5a6380;
+            --accent-blue: #6380ff;
+            --accent-cyan: #00d4ff;
+            --accent-purple: #a855f7;
+            --accent-green: #22d3a7;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --gradient-hero: linear-gradient(135deg, #6380ff 0%, #00d4ff 50%, #a855f7 100%);
+            --gradient-card: linear-gradient(145deg, rgba(99, 128, 255, 0.06) 0%, rgba(0, 212, 255, 0.03) 100%);
+            --shadow-glow: 0 0 40px rgba(99, 128, 255, 0.15);
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ===== ANIMATED BACKGROUND ===== */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(99, 128, 255, 0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 500px 350px at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 70%),
+                radial-gradient(circle 2px at 25% 30%, rgba(99, 128, 255, 0.3) 0%, transparent 100%),
+                radial-gradient(circle 1.5px at 75% 20%, rgba(0, 212, 255, 0.25) 0%, transparent 100%),
+                radial-gradient(circle 1px at 50% 70%, rgba(168, 85, 247, 0.2) 0%, transparent 100%),
+                radial-gradient(circle 2px at 85% 55%, rgba(99, 128, 255, 0.15) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            padding: 40px 0 20px;
+            text-align: center;
+        }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(99, 128, 255, 0.1);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .logo-badge .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(34, 211, 167, 0.5);
+            }
+
+            50% {
+                opacity: 0.7;
+                box-shadow: 0 0 0 6px rgba(34, 211, 167, 0);
+            }
+        }
+
+        h1 {
+            font-size: clamp(28px, 5vw, 42px);
+            font-weight: 800;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        /* ===== UPLOAD ZONE ===== */
+        .upload-section {
+            margin: 32px 0;
+        }
+
+        .upload-zone {
+            position: relative;
+            border: 2px dashed var(--border-subtle);
+            border-radius: var(--radius-xl);
+            padding: 48px 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--gradient-card);
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-xl);
+            background: radial-gradient(circle at center, rgba(99, 128, 255, 0.04) 0%, transparent 70%);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent-blue);
+            background: rgba(99, 128, 255, 0.05);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .upload-zone:hover::before,
+        .upload-zone.drag-over::before {
+            opacity: 1;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            display: block;
+            filter: drop-shadow(0 0 12px rgba(99, 128, 255, 0.4));
+        }
+
+        .upload-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .upload-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .upload-subtitle span {
+            color: var(--accent-blue);
+            font-weight: 500;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-selected {
+            margin-top: 16px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(34, 211, 167, 0.1);
+            border: 1px solid rgba(34, 211, 167, 0.25);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--accent-green);
+        }
+
+        .analyze-btn {
+            display: none;
+            margin: 24px auto 0;
+            padding: 14px 40px;
+            background: var(--gradient-hero);
+            border: none;
+            border-radius: var(--radius-md);
+            color: #fff;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 20px rgba(99, 128, 255, 0.35);
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 128, 255, 0.5);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ===== LOADING STATE ===== */
+        .loading-overlay {
+            display: none;
+            margin: 32px 0;
+            text-align: center;
+            padding: 48px;
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .spinner {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            border: 3px solid var(--border-subtle);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .loading-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .loading-steps {
+            margin-top: 20px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .step-badge {
+            padding: 6px 14px;
+            background: rgba(99, 128, 255, 0.08);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .step-badge.active {
+            color: var(--accent-cyan);
+            border-color: rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .step-badge.done {
+            color: var(--accent-green);
+            border-color: rgba(34, 211, 167, 0.3);
+            background: rgba(34, 211, 167, 0.1);
+        }
+
+        /* ===== ERROR ===== */
+        .error-banner {
+            display: none;
+            margin: 20px 0;
+            padding: 16px 20px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: var(--radius-md);
+            color: var(--accent-red);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* ===== RESULTS ===== */
+        .results-section {
+            display: none;
+            margin: 32px 0 60px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .section-header .tag {
+            padding: 3px 10px;
+            background: rgba(99, 128, 255, 0.12);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* ===== STAT CARDS ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            padding: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-card);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: var(--gradient-hero);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ===== INSIGHTS PANEL ===== */
+        .insights-panel {
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 32px;
+        }
+
+        .insight-item {
+            display: flex;
+            gap: 12px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(99, 128, 255, 0.06);
+            align-items: flex-start;
+        }
+
+        .insight-item:last-child {
+            border-bottom: none;
+        }
+
+        .insight-bullet {
+            flex-shrink: 0;
+            width: 8px;
+            height: 8px;
+            margin-top: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+        }
+
+        .insight-text {
+            font-size: 15px;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* ===== MERMAID DIAGRAM ===== */
+        .diagram-panel {
+            padding: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 32px;
+            text-align: center;
+            overflow-x: auto;
+        }
+
+        .diagram-panel .mermaid {
+            display: inline-block;
+        }
+
+        .diagram-panel .mermaid svg {
+            max-width: 100%;
+        }
+
+        /* ===== FLOWS TABLE ===== */
+        .flows-panel {
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            margin-bottom: 32px;
+            overflow-x: auto;
+        }
+
+        .flows-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .flows-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .flows-table td {
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(99, 128, 255, 0.04);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .flows-table tr:hover td {
+            color: var(--text-primary);
+            background: rgba(99, 128, 255, 0.03);
+        }
+
+        .protocol-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .protocol-TCP {
+            background: rgba(99, 128, 255, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .protocol-UDP {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--accent-purple);
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            text-align: center;
+            padding: 24px 0 40px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 640px) {
+            .upload-zone {
+                padding: 32px 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .diagram-panel {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <div class="logo-badge">
+                <div class="pulse"></div>
+                Network Traffic Analyzer
+            </div>
+            <h1>AI-Powered PCAP Insights</h1>
+            <p class="subtitle">Upload a Wireshark capture file and let Gemini analyze your network traffic patterns,
+                anomalies, and topology.</p>
+        </header>
+
+        <!-- UPLOAD -->
+        <section class="upload-section">
+            <div class="upload-zone" id="upload-zone">
+                <span class="upload-icon">📡</span>
+                <div class="upload-title">Drop your PCAP file here</div>
+                <div class="upload-subtitle">or <span>browse files</span> &nbsp;·&nbsp; .pcap, .pcapng supported (up to
+                    50 MB)</div>
+                <input type="file" id="file-input" accept=".pcap,.pcapng">
+            </div>
+
+            <div class="file-selected" id="file-selected">
+                <span>📁</span>
+                <span id="file-name">—</span>
+                <span id="file-size" style="color: var(--text-muted)">—</span>
+            </div>
+
+            <button class="analyze-btn" id="analyze-btn" onclick="startAnalysis()">
+                🚀 Analyze Traffic
+            </button>
+        </section>
+
+        <!-- ERROR -->
+        <div class="error-banner" id="error-banner"></div>
+
+        <!-- LOADING -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loading-text">Processing your capture file...</div>
+            <div class="loading-sub">This may take 30–60 seconds depending on file size</div>
+            <div class="loading-steps">
+                <div class="step-badge" id="step-upload">Upload</div>
+                <div class="step-badge" id="step-parse">Parse PCAP</div>
+                <div class="step-badge" id="step-analyze">AI Analysis</div>
+                <div class="step-badge" id="step-render">Render</div>
+            </div>
+        </div>
+
+        <!-- RESULTS -->
+        <section class="results-section" id="results-section">
+            <!-- Stats -->
+            <div class="stats-grid" id="stats-grid"></div>
+
+            <!-- Insights -->
+            <div class="section-header">
+                <h2>🔍 AI Insights</h2>
+                <span class="tag">Gemini 2.5 Flash</span>
+            </div>
+            <div class="insights-panel" id="insights-panel"></div>
+
+            <!-- Mermaid Diagram -->
+            <div class="section-header">
+                <h2>🗺️ Network Topology</h2>
+                <span class="tag">Mermaid.js</span>
+            </div>
+            <div class="diagram-panel" id="diagram-panel"></div>
+
+            <!-- Flows Table -->
+            <div class="section-header">
+                <h2>📊 Flow Details</h2>
+                <span class="tag" id="flows-count">0 Flows</span>
+            </div>
+            <div class="flows-panel" id="flows-panel"></div>
+        </section>
+
+        <footer>
+            Network Traffic Analyzer &middot; Built with AI &middot; Powered by <a
+                href="https://deepmind.google/technologies/gemini/" target="_blank">Gemini</a>
+        </footer>
+    </div>
+
+    <script>
+        // ===== MERMAID INIT =====
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#1a2035',
+                primaryTextColor: '#e8ecf4',
+                primaryBorderColor: '#6380ff',
+                lineColor: '#6380ff',
+                secondaryColor: '#111827',
+                tertiaryColor: '#0a0e1a',
+                fontFamily: 'Inter, sans-serif',
+            },
+            flowchart: { curve: 'basis', padding: 16 },
+            securityLevel: 'loose',
+        });
+
+        // ===== ELEMENTS =====
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileSelected = document.getElementById('file-selected');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const errorBanner = document.getElementById('error-banner');
+        const resultsSection = document.getElementById('results-section');
+
+        let selectedFile = null;
+
+        // ===== DRAG & DROP =====
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        ['dragenter', 'dragover'].forEach(evt => {
+            uploadZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            uploadZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('drag-over');
+            });
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFileSelect(files[0]);
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) handleFileSelect(fileInput.files[0]);
+        });
+
+        function handleFileSelect(file) {
+            if (!file.name.match(/\.(pcap|pcapng)$/i)) {
+                showError('Invalid file type. Please select a .pcap or .pcapng file.');
+                return;
+            }
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatBytes(file.size);
+            fileSelected.style.display = 'flex';
+            analyzeBtn.style.display = 'block';
+            errorBanner.style.display = 'none';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // ===== ANALYSIS =====
+        function setStep(stepId) {
+            document.querySelectorAll('.step-badge').forEach(el => el.classList.remove('active'));
+            // Mark previous steps as done
+            const steps = ['step-upload', 'step-parse', 'step-analyze', 'step-render'];
+            const idx = steps.indexOf(stepId);
+            steps.forEach((s, i) => {
+                const el = document.getElementById(s);
+                if (i < idx) { el.classList.remove('active'); el.classList.add('done'); }
+                else if (i === idx) { el.classList.add('active'); el.classList.remove('done'); }
+                else { el.classList.remove('active', 'done'); }
+            });
+        }
+
+        async function startAnalysis() {
+            if (!selectedFile) return;
+
+            // Reset UI
+            errorBanner.style.display = 'none';
+            resultsSection.style.display = 'none';
+            loadingOverlay.style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            setStep('step-upload');
+            loadingText.textContent = 'Uploading capture file...';
+
+            const formData = new FormData();
+            formData.append('pcap_file', selectedFile);
+
+            try {
+                setStep('step-parse');
+                loadingText.textContent = 'Parsing packets & extracting flows...';
+
+                // Small delay for UX
+                await new Promise(r => setTimeout(r, 500));
+
+                setStep('step-analyze');
+                loadingText.textContent = 'Gemini is analyzing your traffic...';
+
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+
+                setStep('step-render');
+                loadingText.textContent = 'Rendering results...';
+                await new Promise(r => setTimeout(r, 300));
+
+                renderResults(data);
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loadingOverlay.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function showError(msg) {
+            errorBanner.textContent = '⚠️ ' + msg;
+            errorBanner.style.display = 'block';
+        }
+
+        // ===== RENDER RESULTS =====
+        function renderResults(data) {
+            const analysis = data.analysis || {};
+            const flows = data.flows || {};
+
+            // Stats
+            const statsGrid = document.getElementById('stats-grid');
+            const totalPackets = flows.total_packets_parsed || 0;
+            const totalFlows = flows.total_flows || 0;
+            const totalBytes = (flows.flows || []).reduce((sum, f) => sum + f.total_bytes, 0);
+            const protocols = [...new Set((flows.flows || []).map(f => {
+                const match = f.flow.match(/\[(\w+)\]/);
+                return match ? match[1] : '?';
+            }))];
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Packets</div>
+                    <div class="stat-value">${totalPackets.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Flows</div>
+                    <div class="stat-value">${totalFlows}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Data</div>
+                    <div class="stat-value">${formatBytes(totalBytes)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Protocols</div>
+                    <div class="stat-value">${protocols.join(', ')}</div>
+                </div>
+            `;
+
+            // Insights
+            const insightsPanel = document.getElementById('insights-panel');
+            const insights = analysis.insights || ['No insights available.'];
+            insightsPanel.innerHTML = insights.map(text => `
+                <div class="insight-item">
+                    <div class="insight-bullet"></div>
+                    <div class="insight-text">${escapeHtml(text)}</div>
+                </div>
+            `).join('');
+
+            // Mermaid Diagram
+            const diagramPanel = document.getElementById('diagram-panel');
+            const mermaidCode = analysis.mermaid_code || 'graph LR\n  A[No diagram]';
+            renderMermaid(diagramPanel, mermaidCode);
+
+            // Flows Table
+            const flowsPanel = document.getElementById('flows-panel');
+            const flowsList = flows.flows || [];
+            document.getElementById('flows-count').textContent = flowsList.length + ' Flows';
+
+            let tableHTML = `<table class="flows-table">
+                <thead>
+                    <tr>
+                        <th>Flow</th>
+                        <th>Protocol</th>
+                        <th>Packets</th>
+                        <th>Data</th>
+                        <th>Duration</th>
+                        <th>Ports</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            flowsList.forEach(f => {
+                const protocolMatch = f.flow.match(/\[(\w+)\]/);
+                const protocol = protocolMatch ? protocolMatch[1] : '?';
+                const flowDisplay = f.flow.replace(/\s*\[\w+\]/, '');
+
+                tableHTML += `<tr>
+                    <td>${escapeHtml(flowDisplay)}</td>
+                    <td><span class="protocol-badge protocol-${protocol}">${protocol}</span></td>
+                    <td>${f.total_packets}</td>
+                    <td>${formatBytes(f.total_bytes)}</td>
+                    <td>${f.duration_seconds}s</td>
+                    <td>${f.destination_ports.join(', ')}</td>
+                </tr>`;
+            });
+
+            tableHTML += '</tbody></table>';
+            flowsPanel.innerHTML = tableHTML;
+
+            // Show results
+            resultsSection.style.display = 'block';
+        }
+
+        async function renderMermaid(container, code) {
+            try {
+                // Clean up the code
+                let cleanCode = code.trim();
+                if (cleanCode.startsWith('```')) {
+                    cleanCode = cleanCode.replace(/```mermaid?\n?/g, '').replace(/```/g, '').trim();
+                }
+
+                const uniqueId = 'mermaid-' + Date.now();
+                const { svg } = await mermaid.render(uniqueId, cleanCode);
+                container.innerHTML = svg;
+            } catch (err) {
+                console.error('Mermaid render error:', err);
+                container.innerHTML = `
+                    <div style="color: var(--accent-amber); font-size: 14px; padding: 20px;">
+                        ⚠️ Diagram rendering failed. Raw code:<br>
+                        <pre style="text-align: left; margin-top: 12px; padding: 16px; background: var(--bg-secondary);
+                            border-radius: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 12px;
+                            color: var(--text-secondary);">${escapeHtml(code)}</pre>
+                    </div>`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>
