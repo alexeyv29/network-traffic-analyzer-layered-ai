@@ -64,7 +64,7 @@ Please provide your analysis in the following EXACT JSON format (no markdown, no
 
 Rules for your analysis:
 1. Provide exactly 3-4 bullet-point insights about the traffic patterns, anomalies, potential security concerns, or notable behaviors.
-2. Generate valid Mermaid.js graph code (using `graph LR` or `graph TD`) showing the communication topology between the unique IP addresses. Label edges with the protocol and port.
+2. Generate valid Mermaid.js graph code (using `graph LR` or `graph TD`) showing the communication topology. Label edges VERY STRICTLY using the syntax `A -->|protocol:port| B`. DO NOT use colons for labels like `A --> B: label`.
 3. Make the Mermaid code clean and renderable. Use simple node IDs (A, B, C, etc.) with IP addresses as labels.
 4. CRITICAL: Return ONLY the raw JSON object. No markdown formatting, no ```json``` blocks, nothing else.
 """
