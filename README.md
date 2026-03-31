@@ -14,6 +14,20 @@ A sophisticated, AI-powered network traffic analysis tool built around a structu
 
 ---
 
+## 📸 Gallery
+<div align="center">
+  <h3>1. Main Dashboard</h3>
+  <img src="assets/main.png" alt="Main Dashboard" width="800"/>
+  <br/><br/>
+  <h3>2. AI Traffic Analysis & Insights</h3>
+  <img src="assets/analysis.png" alt="AI Traffic Analysis" width="800"/>
+  <br/><br/>
+  <h3>3. Dynamically Generated Mermaid Network Diagram</h3>
+  <img src="assets/diagram.png" alt="Mermaid Network Diagram" width="800"/>
+</div>
+
+---
+
 ## 🚀 Quick Start & Installation
 
 ### 1. Clone the repository
