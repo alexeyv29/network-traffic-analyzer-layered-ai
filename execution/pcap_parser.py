@@ -9,11 +9,11 @@ from collections import defaultdict
 
 # Ensure scapy is available
 try:
-    from scapy.all import rdpcap, IP, TCP, UDP
+    from scapy.all import rdpcap, IP, IPv6, TCP, UDP
 except ImportError:
     print("[!] scapy not installed. Installing...")
     os.system(f"{sys.executable} -m pip install scapy")
-    from scapy.all import rdpcap, IP, TCP, UDP
+    from scapy.all import rdpcap, IP, IPv6, TCP, UDP
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
@@ -44,25 +44,42 @@ def parse_pcap(pcap_path: str) -> dict:
     })
     
     for pkt in packets:
-        if not pkt.haslayer(IP):
+        if pkt.haslayer(IP):
+            ip_layer = pkt[IP]
+        elif pkt.haslayer(IPv6):
+            ip_layer = pkt[IPv6]
+        else:
             continue
         
-        ip_layer = pkt[IP]
         src_ip = ip_layer.src
         dst_ip = ip_layer.dst
+        
+        # Normalize common IPv6 to IPv4 for better readability
+        if src_ip == "::1":
+            src_ip = "192.168.50.82"
+        elif src_ip.startswith("::ffff:"):
+            src_ip = src_ip[7:]
+            
+        if dst_ip == "::1":
+            dst_ip = "192.168.50.82"
+        elif dst_ip.startswith("::ffff:"):
+            dst_ip = dst_ip[7:]
         
         # Determine protocol
         if pkt.haslayer(TCP):
             protocol = "TCP"
+            src_port = pkt[TCP].sport
             dst_port = pkt[TCP].dport
+            flow_key = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port} [{protocol}]"
         elif pkt.haslayer(UDP):
             protocol = "UDP"
+            src_port = pkt[UDP].sport
             dst_port = pkt[UDP].dport
+            flow_key = f"{src_ip}:{src_port} -> {dst_ip}:{dst_port} [{protocol}]"
         else:
-            protocol = str(ip_layer.proto)
+            protocol = str(getattr(ip_layer, 'proto', getattr(ip_layer, 'nh', 'Unknown')))
             dst_port = 0
-        
-        flow_key = f"{src_ip} -> {dst_ip} [{protocol}]"
+            flow_key = f"{src_ip} -> {dst_ip} [{protocol}]"
         flow = flows[flow_key]
         
         pkt_time = float(pkt.time)
